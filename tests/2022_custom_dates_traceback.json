@@ -1,0 +1,173 @@
+{
+  "FromDate": "01/01/2023",
+  "ToDate": "04/30/2023",
+  "Transactions": [
+    {
+      "Date": "04/28/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "1.7156",
+      "Description": "Div Reinv",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "PurchasePrice": "$29.2554"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "04/26/2023",
+      "Action": "Dividend Reinvested",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$164.38",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "04/26/2023",
+      "Action": "Dividend",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Credit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "$152.51",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "04/26/2023",
+      "Action": "Tax Withholding",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$8.13",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "03/13/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "11",
+      "Description": "RS",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "AwardDate": "06/10/2020",
+            "AwardId": "1456881",
+            "VestDate": "03/10/2023",
+            "VestFairMarketValue": "$18.81"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "02/13/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "2",
+      "Description": "RS",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "AwardDate": "11/04/2021",
+            "AwardId": "1538212",
+            "VestDate": "02/10/2023",
+            "VestFairMarketValue": "$6.73"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "01/27/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "1.0574",
+      "Description": "Div Reinv",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "PurchasePrice": "$8.2286"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "01/25/2023",
+      "Action": "Dividend Reinvested",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$43.91",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "01/25/2023",
+      "Action": "Tax Withholding",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$1.30",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "01/25/2023",
+      "Action": "Dividend",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Credit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "$5.21",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "01/03/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "5",
+      "Description": "ESPP",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "PurchaseDate": "12/30/2022",
+            "PurchasePrice": "$1.21",
+            "SubscriptionDate": "07/01/2022",
+            "SubscriptionFairMarketValue": "$2.60",
+            "PurchaseFairMarketValue": "$7.64",
+            "TaxWithholdingMethod": null,
+            "NetSharesDeposited": "",
+            "SharesWithheld": "",
+            "SharesSold": "",
+            "CashRefund": "",
+            "CarryForward": ""
+          }
+        }
+      ]
+    }
+  ]
+}
