@@ -19,7 +19,7 @@ source venv/bin/activate
 ```
 pip install -U pip requests pandas xlsxwriter
 ```
-#Run the sript
+#Run the script
 ```
 python3 main-json.py input_data.json output.xlsx
 ``` 
