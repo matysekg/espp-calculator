@@ -1,0 +1,156 @@
+{
+  "FromDate": "01/01/2023",
+  "ToDate": "12/31/2023",
+  "Transactions": [
+    {
+      "Date": "12/13/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "20",
+      "Description": "RS",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "AwardDate": "06/09/2022",
+            "AwardId": "1563265",
+            "VestDate": "12/10/2023",
+            "VestFairMarketValue": "$48.38"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "10/25/2023",
+      "Action": "Dividend",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Credit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "$135.40",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "10/25/2023",
+      "Action": "Tax Withholding",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$20.31",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "10/25/2023",
+      "Action": "Dividend Reinvested",
+      "Symbol": "CSCO",
+      "Quantity": null,
+      "Description": "Debit",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": "-$115.09",
+      "TransactionDetails": []
+    },
+    {
+      "Date": "10/25/2023",
+      "Action": "Deposit",
+      "Symbol": "CSCO",
+      "Quantity": "2.2254",
+      "Description": "Div Reinv",
+      "FeesAndCommissions": null,
+      "DisbursementElection": null,
+      "Amount": null,
+      "TransactionDetails": [
+        {
+          "Details": {
+            "PurchasePrice": "$51.7154"
+          }
+        }
+      ]
+    },
+    {
+      "Date": "10/17/2023",
+      "Action": "Sale",
+      "Symbol": "CSCO",
+      "Quantity": "93.1643",
+      "Description": "Share Sale",
+      "FeesAndCommissions": "$0.05",
+      "DisbursementElection": null,
+      "Amount": "$4,976.86",
+      "TransactionDetails": [
+        {
+          "Details": {
+            "Type": "ESPP",
+            "Shares": "0.1643",
+            "SalePrice": "$53.4208",
+            "SubscriptionDate": "01/04/2021",
+            "SubscriptionFairMarketValue": "$43.96",
+            "PurchaseDate": "06/30/2022",
+            "PurchasePrice": "$36.244",
+            "PurchaseFairMarketValue": "$42.64",
+            "DispositionType": "Qualified",
+            "GrantId": null,
+            "VestDate": "",
+            "VestFairMarketValue": "",
+            "GrossProceeds": "$8.78"
+          }
+        },
+        {
+          "Details": {
+            "Type": "ESPP",
+            "Shares": "33.8357",
+            "SalePrice": "$53.4208",
+            "SubscriptionDate": "01/04/2021",
+            "SubscriptionFairMarketValue": "$43.96",
+            "PurchaseDate": "06/30/2022",
+            "PurchasePrice": "$36.244",
+            "PurchaseFairMarketValue": "$42.64",
+            "DispositionType": "Qualified",
+            "GrantId": null,
+            "VestDate": "",
+            "VestFairMarketValue": "",
+            "GrossProceeds": "$1,807.53"
+          }
+        },
+        {
+          "Details": {
+            "Type": "Div Reinv",
+            "Shares": "1.1643",
+            "SalePrice": "$53.4208",
+            "SubscriptionDate": "",
+            "SubscriptionFairMarketValue": "",
+            "PurchaseDate": "10/28/2022",
+            "PurchasePrice": "$44.9465",
+            "PurchaseFairMarketValue": "",
+            "DispositionType": null,
+            "GrantId": null,
+            "VestDate": "",
+            "VestFairMarketValue": "",
+            "GrossProceeds": "$62.20"
+          }
+        },
+        {
+          "Details": {
+            "Type": "ESPP",
+            "Shares": "58",
+            "SalePrice": "$53.4208",
+            "SubscriptionDate": "07/01/2022",
+            "SubscriptionFairMarketValue": "$42.60",
+            "PurchaseDate": "12/30/2022",
+            "PurchasePrice": "$36.21",
+            "PurchaseFairMarketValue": "$47.64",
+            "DispositionType": "Disqualified",
+            "GrantId": null,
+            "VestDate": "",
+            "VestFairMarketValue": "",
+            "GrossProceeds": "$3,098.41"
+          }
+        }
+      ]
+    }
+  ]
+}
