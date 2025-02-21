@@ -818,6 +818,7 @@ if __name__ == '__main__':
             #add dividend calculations sheet
             dividend_df.to_excel(writer, index=False, sheet_name='Dividend Tax')
             # Access the xlsxwriter worksheet object
+
             worksheet = writer.sheets['Dividend Tax']
             #instruct user which cells should be put into which field of Pit38(2023)
             header_comments = {
