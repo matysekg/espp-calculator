@@ -79,7 +79,7 @@ data = {
 }
 
 # Function to process transactions
-def process_transactions(data):
+def randomize_dividends(data):
     for transaction in data["Transactions"]:
         if transaction["Action"] == "Dividend" and transaction["Amount"]:
             # Randomize the "Amount" for Dividend transactions
@@ -115,7 +115,7 @@ def process_transactions(data):
                             break
 
 # Apply the function
-process_transactions(data)
+randomize_dividends(data)
 
 # Output the modified data
 #for transaction in data["Transactions"]:
