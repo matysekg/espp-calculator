@@ -1,0 +1,26 @@
+
+<!doctype html>
+<html>
+    <head>
+        <!-- Recommended meta tags -->
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <!-- PyScript CSS -->
+        <link rel="stylesheet" href="https://pyscript.net/releases/2025.2.3/core.css">
+        <!-- This script tag bootstraps PyScript -->
+        <script defer type="module" src="https://pyscript.net/releases/2025.2.3/core.js"></script>
+        <title>JSON to Python Dictionary</title>
+    </head>
+<body>
+    <!-- <script type="py" src="./main.py" config="./pyscript.toml" async terminal></script> -->
+    <h1>Upload a JSON File</h1>
+    <input type="file" id="jsonFile" accept=".json" />
+    <button id="uploadButton">Randomize and download new json</button>
+
+    <div id="output" style="margin-top: 20px; white-space: pre-wrap;"></div>
+
+    <section class="pyscript">
+        <script type="py" src="index.py" config="./pyscript.toml"></script>
+    </section>
+</body>
+</html>

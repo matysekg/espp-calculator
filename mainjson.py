@@ -6,7 +6,7 @@
 import unittest
 import requests
 import json
-from unittest import TestCase
+#from unittest import TestCase
 import re
 from datetime import datetime
 from datetime import timedelta
@@ -744,8 +744,9 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
             # Add a comment to the GrossProceeds PLN sum cell
         worksheet.write_comment(cell_reference, value)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
+
+def main():
+
     parser = argparse.ArgumentParser(description="Convert export of previous year transactions from Charles Schwab in JSON format to XLSX")
     parser.add_argument("input_json", help="Name of the input JSON file")
     parser.add_argument("output_xlsx", help="Name of the output XLSX file")
@@ -877,3 +878,6 @@ def ConvDate(input: str):
     line=input.split()
     line[:]=[datetime.strptime(date, '%m/%d/%Y') for date in line]
     return line
+
+if __name__ == '__main__':
+    main()

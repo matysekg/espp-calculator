@@ -1,4 +1,6 @@
 name = "API Proxy Tutorial"
 description = "Introduction to using API Proxies"
 tags = ["features", "tutorial"]
-
+packages = ["requests", "pandas", "xlsxwriter"]
+[files]
+"./mainjson.py" = ""
