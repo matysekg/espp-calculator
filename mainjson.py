@@ -85,7 +85,7 @@ class NbpRatesDm1:
         else:
             # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-06-29/
             headers = {'Accept': 'application/json'}
-            url = 'http://api.nbp.pl/api/exchangerates/rates/A/USD/'+iso_date
+            url = 'https://api.nbp.pl/api/exchangerates/rates/A/USD/'+iso_date
             response = requests.get(url, verify=False, headers=headers)
             if response.ok:
                 parse = json.loads(response.text)

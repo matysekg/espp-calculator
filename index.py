@@ -12,7 +12,7 @@ data = {
             "Date": "12/13/2023",
             "Action": "Deposit",
             "Symbol": "CSCO",
-            "Quantity": "20",
+            "Quantity": "143.1286",
             "Description": "RS",
             "FeesAndCommissions": None,
             "DisbursementElection": None,
@@ -36,7 +36,7 @@ data = {
             "Description": "Credit",
             "FeesAndCommissions": None,
             "DisbursementElection": None,
-            "Amount": "$135.40",
+            "Amount": "$418.00",
             "TransactionDetails": []
         },
         {
@@ -47,7 +47,7 @@ data = {
             "Description": "Debit",
             "FeesAndCommissions": None,
             "DisbursementElection": None,
-            "Amount": "-$20.31",
+            "Amount": "-$62.70",
             "TransactionDetails": []
         },
         {
@@ -58,14 +58,14 @@ data = {
             "Description": "Debit",
             "FeesAndCommissions": None,
             "DisbursementElection": None,
-            "Amount": "-$115.09",
+            "Amount": "-$355.30",
             "TransactionDetails": []
         },
         {
             "Date": "10/25/2023",
             "Action": "Deposit",
             "Symbol": "CSCO",
-            "Quantity": "2.2254",
+            "Quantity": "47.8891",
             "Description": "Div Reinv",
             "FeesAndCommissions": None,
             "DisbursementElection": None,
@@ -78,6 +78,86 @@ data = {
                 }
             ]
         },
+        {
+            "Date": "10/17/2023",
+            "Action": "Sale",
+            "Symbol": "CSCO",
+            "Quantity": "582.5552",
+            "Description": "Share Sale",
+            "FeesAndCommissions": "$0.05",
+            "DisbursementElection": None,
+            "Amount": "$31,120.56",
+            "TransactionDetails": [
+                {
+                    "Details": {
+                        "Type": "ESPP",
+                        "Shares": "0.8082",
+                        "SalePrice": "$53.4208",
+                        "SubscriptionDate": "01/04/2021",
+                        "SubscriptionFairMarketValue": "$43.96",
+                        "PurchaseDate": "06/30/2022",
+                        "PurchasePrice": "$36.244",
+                        "PurchaseFairMarketValue": "$42.64",
+                        "DispositionType": "Qualified",
+                        "GrantId": None,
+                        "VestDate": "",
+                        "VestFairMarketValue": "",
+                        "GrossProceeds": "$43.17"
+                    }
+                },
+                {
+                    "Details": {
+                        "Type": "ESPP",
+                        "Shares": "7.1697",
+                        "SalePrice": "$53.4208",
+                        "SubscriptionDate": "01/04/2021",
+                        "SubscriptionFairMarketValue": "$43.96",
+                        "PurchaseDate": "06/30/2022",
+                        "PurchasePrice": "$36.244",
+                        "PurchaseFairMarketValue": "$42.64",
+                        "DispositionType": "Qualified",
+                        "GrantId": None,
+                        "VestDate": "",
+                        "VestFairMarketValue": "",
+                        "GrossProceeds": "$383.01"
+                    }
+                },
+                {
+                    "Details": {
+                        "Type": "Div Reinv",
+                        "Shares": "3.733",
+                        "SalePrice": "$53.4208",
+                        "SubscriptionDate": "",
+                        "SubscriptionFairMarketValue": "",
+                        "PurchaseDate": "10/28/2022",
+                        "PurchasePrice": "$44.9465",
+                        "PurchaseFairMarketValue": "",
+                        "DispositionType": None,
+                        "GrantId": None,
+                        "VestDate": "",
+                        "VestFairMarketValue": "",
+                        "GrossProceeds": "$199.42"
+                    }
+                },
+                {
+                    "Details": {
+                        "Type": "ESPP",
+                        "Shares": "570.8443",
+                        "SalePrice": "$53.4208",
+                        "SubscriptionDate": "07/01/2022",
+                        "SubscriptionFairMarketValue": "$42.60",
+                        "PurchaseDate": "12/30/2022",
+                        "PurchasePrice": "$36.21",
+                        "PurchaseFairMarketValue": "$47.64",
+                        "DispositionType": "Disqualified",
+                        "GrantId": None,
+                        "VestDate": "",
+                        "VestFairMarketValue": "",
+                        "GrossProceeds": "$30,494.96"
+                    }
+                }
+            ]
+        }
     ]
 }
 
