@@ -1,6 +1,7 @@
 #!/bin/python3
 
 import mainjson
+import sys
 from js import alert
 
 # Example data
@@ -220,7 +221,7 @@ async def main():
     rates = mainjson.NbpRatesDm1()
 
     fiscal_events_list = mainjson.parse_json_to_fiscal_events_list(data)
-    sale_full_df = mainjson.SaleEventsToPandas(fiscal_events_list, rates)
+    sale_full_df = await mainjson.SaleEventsToPandas(fiscal_events_list, rates)
     if not sale_full_df.empty:
         sale_full_df = sale_full_df.sort_values(by='SaleDate')
         sale_full_df = mainjson.add_sales_sums(sale_full_df)
@@ -228,7 +229,7 @@ async def main():
                                                             'GrossProceeds PLN']).sum(numeric_only=True)
         mainjson.calculate_tax(sale_full_df)
         mainjson.format_df_two_decimal_numbers(sale_full_df)
-    dividend_df = mainjson.dividend_events_to_pandas(fiscal_events_list, rates)
+    dividend_df = await mainjson.dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         mainjson.calculate_dividend_tax(dividend_df)
         mainjson.format_df_two_decimal_numbers(dividend_df)
@@ -294,7 +295,7 @@ async def main():
 
 """
     #Run the main:
-try:
-    await main()
-except Exception as e:
-    error_handler(e)
+#try:
+await main()
+#except Exception as e:
+#    error_handler(e)
