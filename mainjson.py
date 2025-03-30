@@ -559,36 +559,37 @@ async def SaleEventsToPandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) ->
     for fin_event in obj_list:
         if fin_event.event_dict["Action"] != "Sale":
             continue
-        #list=[]
-        #list.append(fin_event.event_dict)
-        #event_df=pd.DataFrame.from_dict(list)
-        #list_of_sale_df.append(event_df)
         #print(f"Sale date: {fin_event.event_dict['Date']:%d.%m.%Y}")
         #for each of event_items dicts add ['PurchaseUSDRate D-1 PLN'] = rates.get_usd_pln_d_1(purchase_date)
         fin_event.event_items_list[:] = [ await PurchaseDateRate(x, rates) for x in fin_event.event_items_list ]
         sale_rate = await rates.get_usd_pln_d_1(fin_event.event_dict['Date'])
+        
         #for each event_items dicts add ['SaleUSDRate D-1 PLN'] = sale_rate
         fin_event.event_items_list[:] = [ AddSaleRate(x, sale_rate) for x in fin_event.event_items_list ]
+        
         #drop keys/values not needed
         fin_event.event_items_list[:] = [ DropSurplusKeys(x) for x in fin_event.event_items_list ]
         fin_event.event_items_list[:] = [ AddSaleItemMissingKeys(x) for x in fin_event.event_items_list ]
+        
         #Add event_item representing the Fiscal Event type Sale itself - for fee tracking in the same table.
         fin_event.copy_sale_to_its_details(sale_rate)
-        #fin_event.event_items_list.append(CreateSaleEventItem(fin_event, sale_rate))
+        
         #Create a dataframe
         sale_df=pd.DataFrame.from_dict(fin_event.event_items_list)
+        
         #Rename columns to be self-explanatory
         sale_df=sale_df.rename(columns={'SalePrice' : 'SalePrice USD', 'Date' : 'SaleDate', 'GrossProceeds' : 'GrossProceeds USD', \
                                         'PurchasePrice' : 'PurchasePrice USD', 'Amount': 'Amount USD', 'FeesAndCommissions': 'FeesAndCommissions USD'})
-        list_of_sale_df.append(sale_df)
- #       sale_df['purchase_rate_d-1']=sale_df.apply(lambda x: PurchaseDate(x, rates), axis=1)
-        #print(event_df)
+        
+        # Only add non-empty DataFrames
+        if not sale_df.empty:
+            list_of_sale_df.append(sale_df)
 
     if list_of_sale_df == []:
         #If there are no sales events return and empty DataFrame.
         return pd.DataFrame()
     else:
-        return pd.concat(list_of_sale_df)
+        return pd.concat(list_of_sale_df, ignore_index=True)
 
 def CreateSaleEventItem(fin_event: FiscalEvent, sale_rate: float) -> dict:
     """To present sale items itself along with fees for each sale event we need to add to dataframe a row with "Date", "Fee", "Type": "Sell", "Amount", "Shares"
@@ -824,10 +825,23 @@ async def main():
     fiscal_events_list = parse_json_to_fiscal_events_list(data)
     sale_full_df = await SaleEventsToPandas(fiscal_events_list, rates)
     if not sale_full_df.empty:
-        sale_full_df = sale_full_df.sort_values(by='SaleDate')
+        sale_full_df = sale_full_df.sort_values(by='SaleDate')        
         sale_full_df = add_sales_sums(sale_full_df)
-        sale_full_df.loc['Total'] = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
-                                                            'GrossProceeds PLN']).sum(numeric_only=True)
+        sale_total = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
+                                                            'GrossProceeds PLN'])
+        totals = sale_total.sum(numeric_only=True)
+        print(f'\n{sale_total}\n')        
+#        sale_full_df.loc['Total'] = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
+#                                                            'GrossProceeds PLN']).sum(numeric_only=True)
+        # Add totals row to sale_full_df
+        sale_full_df.loc['Total', totals.index] = totals.values
+
+        # Optionally fill NaN in other columns for 'Total' row with default values
+        #sale_full_df.fillna({'SaleDate': '', 'Type': '', 'Shares': 0, 'SalePrice USD': 0, 'PurchaseDate': '', 'PurchasePrice USD': 0,
+        #                     'GrossProceeds USD': 0, 'PurchaseUSDRate D-1 PLN': 0, 'SaleUSDRate D-1 PLN': 0, 'FeesAndCommissions USD': 0,
+        #                     'Amount USD': 0, 'TotalCost PLN': 0}, inplace=True)
+        sale_full_df.fillna('',inplace=True)
+
         calculate_tax(sale_full_df)
         format_df_two_decimal_numbers(sale_full_df)
     dividend_df = await dividend_events_to_pandas(fiscal_events_list, rates)
