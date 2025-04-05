@@ -35,8 +35,8 @@ async def upload_file_and_process(e):
             #pprint(f"json: {dictionary["Transactions"]}")
             sale_full_df, dividend_df, excel_file = await main(data)
             # Convert DataFrames to HTML tables
-            sale_html = sale_full_df.to_html(classes='data-table', border=1)
-            dividend_html = dividend_df.to_html(classes='data-table', border=1)
+            sale_html = sale_full_df.to_html(classes='data-table', border=1, na_rep='')
+            dividend_html = dividend_df.to_html(classes='data-table', border=1, na_rep='')
 
             # Insert HTML tables into the webpage
             document.getElementById("saleTable").innerHTML = sale_html
