@@ -16,6 +16,7 @@ import xlsxwriter.worksheet
 import argparse
 import sys
 import asyncio
+import io
 
 try:
     # If PyScript is available, js will be imported
@@ -694,6 +695,7 @@ def calculate_dividend_tax(items: pd.DataFrame):
     items.loc['Total','TaxPL PLN'] = items['TaxPL PLN'].sum()
     items.loc['Total','TaxDue PLN'] = items.loc['Total','TaxPL PLN'] - items.loc['Total','TaxWitholdedInUS PLN']
 
+
 def format_xlsx(workbook: xlsxwriter.workbook, excel_out: pd.DataFrame, worksheet: xlsxwriter.worksheet.Worksheet) -> bool:
         #set formatting
         date_dict = {'num_format':'dd-mm-yyyy'}
@@ -757,6 +759,7 @@ def format_xlsx(workbook: xlsxwriter.workbook, excel_out: pd.DataFrame, workshee
                                 workbook.add_format(date_dict | blue_dict))  # row_num + 1 because of the header row 5 is the index of column 'SaleDate'
         worksheet.set_row(len(excel_out), None, green_format)  # row_num + 1 to skip the header row
         worksheet.autofit()
+        return True
 
 def format_df_two_decimal_numbers(DF: pd.DataFrame):
     """_summary_
@@ -793,12 +796,126 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
     last_row = len(df.index) - 1
     for key, value in bottom_comments.items():
         col_index=df.columns.get_loc(key)
-        # Convert the column index to Excel-style alphanumeric column string (e.g., 0 -> 'A', 25 -> 'Z', 26 -> 'AA', etc.)
+        # Convert the column index to Excel-style alphanumeric column string (e.g., 0 -> 'A', 25 -> 'Z',  26 -> 'AA', etc.)
         col_letter = xlsxwriter.utility.xl_col_to_name(col_index)
         # Construct the cell reference (e.g., 'A1', 'B2', etc.)
         cell_reference = f"{col_letter}{last_row + 2}"  # Adding 2 because Excel is 1-indexed and there's a header row
             # Add a comment to the GrossProceeds PLN sum cell
         worksheet.write_comment(cell_reference, value)
+
+
+def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.BytesIO:
+    """
+    Generates an Excel file containing tax reports for sales and dividends, and returns it as an in-memory byte stream.
+
+    Args:
+        sale_full_df (pd.DataFrame): DataFrame containing sales transaction data.
+            Expected columns: 'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+                               'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+                               'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+                               'TotalCost PLN', 'Tax PLN'
+        dividend_df (pd.DataFrame): DataFrame containing dividend data.
+            Expected columns: 'Income USD', 'DividendUSDRate D-1 PLN', 'TaxWitholded USD', 'Income PLN',
+                               'TaxWitholdedInUS PLN', 'TaxPL PLN', 'TaxDue PLN'
+
+    Returns:
+        io.BytesIO: An in-memory Excel file containing the tax reports.
+    """
+
+    output = io.BytesIO()
+
+    with pd.ExcelWriter(output, engine='xlsxwriter', datetime_format='MM/DD/YYYY') as writer:
+        workbook = writer.book
+
+        if not sale_full_df.empty:
+            excel_out = sale_full_df[[
+                'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+                'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+                'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+                'TotalCost PLN', 'Tax PLN'
+            ]]
+            excel_out.to_excel(writer, index=False, sheet_name='Sale Tax')
+            worksheet = writer.sheets['Sale Tax']
+
+            header_comments = {
+                'PurchaseCost PLN': '= Shares * PurchasePrice USD * PurchaseUSDRate D-1 PLN',
+                'FeesAndCommissions PLN': '= FeesAndCommissions USD * SaleUSDRate D-1 PLN',
+                'GrossProceeds PLN': '= GrossProceeds USD * SaleUSDRate D-1 PLN',
+                'TotalCost PLN': '= sum(PurchaseCost PLN) + sum(FeesAndCommissions PLN)',
+                'Tax PLN': '= ( sum(GrossProceeds PLN) - TotalCost PLN ) * 0.19'
+            }
+            bottom_comments = {
+                'GrossProceeds PLN': 'Into Pit38 C.22',
+                'TotalCost PLN': 'Into Pit38 C.23'
+            }
+
+            add_comments(worksheet, excel_out, bottom_comments=bottom_comments, header_comments=header_comments)
+            format_xlsx(workbook, excel_out, worksheet)
+        else:
+            print("There were no sale transactions.")
+
+        if not dividend_df.empty:
+            dividend_df.to_excel(writer, index=False, sheet_name='Dividend Tax')
+            worksheet = writer.sheets['Dividend Tax']
+
+            header_comments = {
+                'Income PLN': '= Income USD * DividendUSDRate D-1 PLN',
+                'TaxWitholdedInUS PLN': '= TaxWitholded USD * DividendUSDRate D-1 PLN',
+                'TaxPL PLN': '= Income PLN * 0.19',
+                'TaxDue PLN': '= sum(TaxPL PLN) - sum(TaxWitholdedInUS PLN)'
+            }
+            bottom_comments = {
+                'TaxWitholdedInUS PLN': 'Into Pit38 G.46',
+                'TaxPL PLN': 'Into Pit38 G.45'
+            }
+
+            add_comments(worksheet, dividend_df, header_comments=header_comments, bottom_comments=bottom_comments)
+            format_xlsx(workbook, dividend_df, worksheet)
+        else:
+            print("There were no dividends received.")
+
+    output.seek(0)  # Reset the buffer's position to the beginning
+    return output
+
+class TestNbpRatesDm1(unittest.TestCase):
+
+    def test_get_usd_pln_d_1_cached(self):
+        rates = NbpRatesDm1()
+        date = (datetime.strptime("12/07/2020", "%m/%d/%Y")).date()
+        rates.rates_cache[(date.isoformat())] = 3.9646
+        # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-12/
+        # due to Sunday expected d-1 = http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-10/
+        expected = 3.9646
+        self.assertEqual(asyncio.run(rates.get_usd_pln_d_1("12/07/2020")), expected)
+
+    def test_get_usd_pln_nbp(self):
+        rates = NbpRatesDm1()
+        expected_value = 3.9656
+        result = rates.get_usd_pln_nbp("2020-06-29")
+        self.assertEqual(result, expected_value)
+
+    def test_get_usd_pln_nbp_404(self):
+        # Check if function properly raises exception if it gets "wrong" 404.
+        rates = NbpRatesDm1()
+        self.assertRaises(AssertionError, rates.get_usd_pln_nbp("20210-06-29"))
+
+
+
+def ConvDate(input: pd.DataFrame):
+    for name, values in input[['PurchaseDate','VestDate','SubscriptionDate']].items():
+        #if not empty
+        if bool(values) == True:
+            input[name] = datetime.strptime(values, '%m/%d/%Y')
+        #print(f"{input[name]}")
+    return input
+        #date = datetime.strptime(date, '%m/%d/%Y')
+        #print(f'{date.day}.{date.month}.{date.year}')
+
+def ConvDate(input: str):
+    line=input.split()
+    line[:]=[datetime.strptime(date, '%m/%d/%Y') for date in line]
+    return line
+
 
 
 async def main():
@@ -830,7 +947,6 @@ async def main():
         sale_total = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
                                                             'GrossProceeds PLN'])
         totals = sale_total.sum(numeric_only=True)
-        print(f'\n{sale_total}\n')        
 #        sale_full_df.loc['Total'] = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
 #                                                            'GrossProceeds PLN']).sum(numeric_only=True)
         # Add totals row to sale_full_df
@@ -850,10 +966,20 @@ async def main():
         format_df_two_decimal_numbers(dividend_df)
     print(f'\n{sale_full_df}\n')
     print(f'\n{dividend_df}\n')
+    
+        # Generate the Excel file as io.BytesIO
+    excel_file = generate_tax_report(sale_full_df, dividend_df)
+
+    # Save the io.BytesIO object to a file
+    with open("tax_report.xlsx", "wb") as f:
+        f.write(excel_file.read())
+
+    print("Excel file 'tax_report.xlsx' saved successfully.")
+
 
 #    dividend_df = calculate_dividend_tax(dividend_df)
 #    print(f'\n{sale_full_df}\n')
-    with pd.ExcelWriter(args.output_xlsx, datetime_format='MM/DD/YYYY', engine='xlsxwriter') as writer:
+"""    with pd.ExcelWriter(args.output_xlsx, datetime_format='MM/DD/YYYY', engine='xlsxwriter') as writer:
         # Access the xlsxwriter workbook object
         workbook  = writer.book
 
@@ -906,47 +1032,11 @@ async def main():
             format_xlsx(workbook, dividend_df, worksheet)
         else:
             print("There were no dividends received.")
+"""
+
+    
 
 
-
-class TestNbpRatesDm1(unittest.TestCase):
-
-    def test_get_usd_pln_d_1_cached(self):
-        rates = NbpRatesDm1()
-        date = (datetime.strptime("12/07/2020", "%m/%d/%Y")).date()
-        rates.rates_cache[(date.isoformat())] = 3.9646
-        # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-12/
-        # due to Sunday expected d-1 = http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-10/
-        expected = 3.9646
-        self.assertEqual(asyncio.run(rates.get_usd_pln_d_1("12/07/2020")), expected)
-
-    def test_get_usd_pln_nbp(self):
-        rates = NbpRatesDm1()
-        expected_value = 3.9656
-        result = rates.get_usd_pln_nbp("2020-06-29")
-        self.assertEqual(result, expected_value)
-
-    def test_get_usd_pln_nbp_404(self):
-        # Check if function properly raises exception if it gets "wrong" 404.
-        rates = NbpRatesDm1()
-        self.assertRaises(AssertionError, rates.get_usd_pln_nbp("20210-06-29"))
-
-
-
-def ConvDate(input: pd.DataFrame):
-    for name, values in input[['PurchaseDate','VestDate','SubscriptionDate']].items():
-        #if not empty
-        if bool(values) == True:
-            input[name] = datetime.strptime(values, '%m/%d/%Y')
-        #print(f"{input[name]}")
-    return input
-        #date = datetime.strptime(date, '%m/%d/%Y')
-        #print(f'{date.day}.{date.month}.{date.year}')
-
-def ConvDate(input: str):
-    line=input.split()
-    line[:]=[datetime.strptime(date, '%m/%d/%Y') for date in line]
-    return line
 
 if __name__ == '__main__':
     asyncio.run(main())
