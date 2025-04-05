@@ -87,7 +87,11 @@ class NbpRatesDm1:
                     assert isinstance(rate, (int, float)), "Rate is neither int nor float, wrong data received from API: " + str(rate)
                     return float(rate)
                 elif response.status == 404:
-                    assert False, "Received HTTP error: " + response.status
+                    response_text = await response.text()
+                    if response_text == "404 NotFound - Not Found - Brak danych":
+                        return -1
+                    else:
+                        assert False, "Received HTTP error: " + str(response.status) + "\n" + response_text
                 else:
                     response_text = await response.text()
                     assert False, "Received HTTP error: " + response_text
@@ -102,7 +106,11 @@ class NbpRatesDm1:
             assert isinstance(rate, (int, float)), "Rate is neither int nor float, wrong data received from API: " + str(rate)
             return float(rate)
         elif response.status == 404:
-            assert False, "Received HTTP error: " + response.status
+            response_text = await response.text()
+            if response_text == "404 NotFound - Not Found - Brak danych":
+                return -1
+            else:
+                assert False, "Received HTTP error: " + str(response.status) + "\n" + response_text
         else:
             response_text = await response.text()
             assert False, "Received HTTP error: " + response_text        
@@ -956,7 +964,7 @@ async def main():
         #sale_full_df.fillna({'SaleDate': '', 'Type': '', 'Shares': 0, 'SalePrice USD': 0, 'PurchaseDate': '', 'PurchasePrice USD': 0,
         #                     'GrossProceeds USD': 0, 'PurchaseUSDRate D-1 PLN': 0, 'SaleUSDRate D-1 PLN': 0, 'FeesAndCommissions USD': 0,
         #                     'Amount USD': 0, 'TotalCost PLN': 0}, inplace=True)
-        sale_full_df.fillna('',inplace=True)
+        #sale_full_df.fillna(0,inplace=True)
 
         calculate_tax(sale_full_df)
         format_df_two_decimal_numbers(sale_full_df)
