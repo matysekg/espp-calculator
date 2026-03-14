@@ -65,8 +65,11 @@ async def upload_file_and_process(e):
             hidden_link.setAttribute("download", xlsx_filename)
             hidden_link.setAttribute("href", download_string)
             hidden_link.id = "downloadLink"
+            #deactivate "Process the file" button
+            upload_button = document.querySelector('#uploadButton')
+            upload_button.disabled = True
             #Activate download button
-            document.getElementById("downloadButton").hidden = False
+            document.getElementById("downloadButton").disabled = False
             document.body.appendChild(hidden_link)
 
 
@@ -125,6 +128,8 @@ async def handle_file_select(e):
     If the file select changed check if a files is selected.
     If files is selected activate the upload ("Process the file") button.  
     '''
+    #Dectivate download button
+    document.getElementById("downloadButton").disabled = True
     #jsonFile = document.querySelector('#jsonFile')
     #print(f"ID of jsonFile: {jsonFile.id}")
     file_select = e.target
@@ -139,6 +144,7 @@ async def handle_file_select(e):
             print("Selected file has a JSON extension:", filename)
         else:
             print("Selected file doesn't have JSON extension:", filename)
+        #Activate "Process the file" button
         upload_button = document.querySelector('#uploadButton')
         upload_button.disabled = False
 
