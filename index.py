@@ -45,13 +45,12 @@ async def upload_file_and_process(e):
             document.getElementById("dividendTable").innerHTML = dividend_html
 
             #Create a file and a download URL
-            print(f"Type of excel_file: {type(excel_file)}")
             data = excel_file.read()
             base64_encoded = base64.b64encode(data).decode('UTF-8')
             octet_string = "data:application/octet-stream;base64,"
             download_string = octet_string + base64_encoded
 
-            print(f"Download string: \n{download_string}")
+            #print(f"Download string: \n{download_string}")
             
             #Handle case where two json files are handled one after another
             #If the <a> with id "downloadLink" exists, then delete it first
@@ -62,25 +61,12 @@ async def upload_file_and_process(e):
             #Set the default filename to be <json_file>.json
             json_filename = first_file.name
             xlsx_filename = json_filename.replace(".json", ".xlsx")
-            print(f"Type of hidden link: {type(hidden_link)}") #Hidden link id: {hidden_link.id}")
             hidden_link = document.createElement("a")
             hidden_link.setAttribute("download", xlsx_filename)
             hidden_link.setAttribute("href", download_string)
             hidden_link.id = "downloadLink"
             #Activate download button
             document.getElementById("downloadButton").hidden = False
-
-            # data = "Hello world, this is some text."
-            # encoded_data = data.encode('utf-8')
-            # my_stream = io.BytesIO(encoded_data)
-            # js_array = Uint8Array.new(len(encoded_data))
-            # js_array.assign(my_stream.getbuffer())
-            # file = File.new([js_array], "unused_file_name.txt", {type: "text/plain"})
-            # url = URL.createObjectURL(file)
-    
-            # # The second parameter here is the actual name of the file that will appear in the user's file system
-            # hidden_link.setAttribute("download", "my_other_file_name.txt")
-            # hidden_link.setAttribute("href", url)
             document.body.appendChild(hidden_link)
 
 
@@ -127,11 +113,42 @@ async def main(data: dict):
     output = [sale_full_df, dividend_df, excel_file]
     return output
 
-# Add an event listener to the show active sessions checkbox
+
 file_select = document.getElementById("jsonFile")
 file_select.disabled = False
+
 upload_button = document.querySelector('#uploadButton')
-upload_button.disabled = False
+
+
+async def handle_file_select(e):
+    '''
+    If the file select changed check if a files is selected.
+    If files is selected activate the upload ("Process the file") button.  
+    '''
+    #jsonFile = document.querySelector('#jsonFile')
+    #print(f"ID of jsonFile: {jsonFile.id}")
+    file_select = e.target
+    file_list = file_select.files
+    if file_list.length > 0:
+        filename  = file_list.item(0).name          
+        # You can also check if the file is a JSON file (optional)
+        extensions = ['json']
+        file_extension = filename.split('.').pop().lower()
+        
+        if file_extension in extensions:
+            print("Selected file has a JSON extension:", filename)
+        else:
+            print("Selected file doesn't have JSON extension:", filename)
+        upload_button = document.querySelector('#uploadButton')
+        upload_button.disabled = False
+
+    else:
+        print("No file selected")
+  
+
+
+
+add_event_listener(file_select,'change', handle_file_select)
 add_event_listener(upload_button,'click', upload_file_and_process)
 
 def downloadFile(*args):
