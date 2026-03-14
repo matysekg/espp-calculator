@@ -1,24 +1,38 @@
-
 <!doctype html>
 <html>
     <head>
-        <!-- Recommended meta tags -->
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width,initial-scale=1.0">
-        <!-- PyScript CSS -->
-        <link rel="stylesheet" href="https://pyscript.net/releases/2025.2.3/core.css">
-        <!-- This script tag bootstraps PyScript -->
-        <script defer type="module" src="https://pyscript.net/releases/2025.2.3/core.js"></script>
+        <link rel="stylesheet" href="https://pyscript.net/releases/2026.3.1/core.css">
+        <script defer type="module" src="https://pyscript.net/releases/2026.3.1/core.js"></script>
         <title>JSON to Python Dictionary</title>
+        <style>
+            .data-table {
+                border-collapse: collapse;
+                width: 100%;
+                margin-top: 20px;
+            }
+            .data-table th, .data-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+            }
+            .data-table th {
+                background-color: #f2f2f2;
+                text-align: left;
+            }
+        </style>
     </head>
 <body>
-    <!-- <script type="py" src="./main.py" config="./pyscript.toml" async terminal></script> -->
     <h1>Upload a JSON File</h1>
-    <input type="file" id="jsonFile" accept=".json" />
-    <button id="uploadButton">Randomize and download new json</button>
+    <input type="file" id="jsonFile" accept=".json" disabled/>
+    <button id="uploadButton" disabled>Process the file</button>
 
     <div id="output" style="margin-top: 20px; white-space: pre-wrap;"></div>
 
+    <!-- Placeholder for DataFrames -->
+    <div id="saleTable"></div>
+    <div id="dividendTable"></div>
+    <button id="downloadButton" hidden="true">Download XLS</button>
     <section class="pyscript">
         <script type="py" src="index.py" config="./pyscript.toml"></script>
     </section>

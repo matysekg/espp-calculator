@@ -12,7 +12,9 @@
             "console": "integratedTerminal",
             "args": [
 //                "${command:pickArgs}"
-                "./tests/2022_custom_dates_traceback.json",
+//                "./tests/2023_test.json",
+//                "pyscript-test-data.json",
+                "/Users/mgrzesia/Documents/Dokumenty/PITy/Schwab/2024/2024_mateusz.json",
                 "test.xlsx"
             ]
         }

@@ -15,6 +15,17 @@ import xlsxwriter
 import xlsxwriter.worksheet
 import argparse
 import sys
+import asyncio
+import io
+
+try:
+    # If PyScript is available, js will be imported
+    from pyscript import fetch
+    is_pyscript = True
+except ImportError:
+    # Otherwise, we assume it's standalone Python
+    import aiohttp
+    is_pyscript = False
 
 def test_always_passes():
     assert True
@@ -28,7 +39,7 @@ class NbpRatesDm1:
     def __init__(self):
         self.rates_cache=dict()
 
-    def get_usd_pln_d_1(self, date: str | datetime) -> float:
+    async def get_usd_pln_d_1(self, date: str | datetime) -> float:
         """Returns USD/PLN rate for previous working day before the transaction date
         from NBP. 
 
@@ -38,19 +49,71 @@ class NbpRatesDm1:
         Returns:
             float: the D-1 USD/PLN rate
         """
-        if type(date) == str:
-            d = (datetime.strptime(date, "%d.%m.%Y")).date()
-        elif type(date) == datetime:
+
+        url_base = f'https://api.nbp.pl/api/exchangerates/rates/A/USD/'
+        headers = {'Accept': 'application/json'}
+
+        if isinstance(date, str):
+            d = datetime.strptime(date, "%d.%m.%Y").date()
+        elif isinstance(date, datetime):
             d = date.date()
+
         for i in range(1, 7):
             # For Monday we need to move backwards at least 2 days, but Friday could be also bank holiday, Thursday as well
             # assuming no more than 6 non-business day in a raw
             days = timedelta(days=i)
 #            get_date = (d - days).strftime('%Y-%m-%d')
-            get_date = (d - days).isoformat()
-            output = self._get_usd_pln_nbp(get_date)
-            if output > 0:
-                return float(output)
+            iso_date = (d - days).isoformat()
+            url = url_base + iso_date
+            if iso_date in self.rates_cache:
+                return self.rates_cache[iso_date]
+            elif is_pyscript:
+                rate = await self._get_usd_pln_nbp_pyscript(url, headers)
+                self.rates_cache[iso_date] = rate
+            else:
+                rate = await self._get_usd_pln_nbp_python(url, headers)
+                self.rates_cache[iso_date] = rate
+            if rate > 0:
+                return float(rate)
+            
+    
+    async def _get_usd_pln_nbp_python(self, url, headers) -> float:
+        """Fetch rate using aiohttp for standalone Python."""
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status == 200:
+                    parse = await response.json()
+                    rate = parse['rates'][0]['mid']
+                    assert isinstance(rate, (int, float)), "Rate is neither int nor float, wrong data received from API: " + str(rate)
+                    return float(rate)
+                elif response.status == 404:
+                    response_text = await response.text()
+                    if response_text == "404 NotFound - Not Found - Brak danych":
+                        return -1
+                    else:
+                        assert False, "Received HTTP error: " + str(response.status) + "\n" + response_text
+                else:
+                    response_text = await response.text()
+                    assert False, "Received HTTP error: " + response_text
+
+    async def _get_usd_pln_nbp_pyscript(self, url, headers) -> float:
+        """Fetch rate using fetch API in PyScript."""
+
+        response = await fetch(url, headers=headers)
+        if response.ok:
+            parse = await response.json()
+            rate = parse['rates'][0]['mid']
+            assert isinstance(rate, (int, float)), "Rate is neither int nor float, wrong data received from API: " + str(rate)
+            return float(rate)
+        elif response.status == 404:
+            response_text = await response.text()
+            if response_text == "404 NotFound - Not Found - Brak danych":
+                return -1
+            else:
+                assert False, "Received HTTP error: " + str(response.status) + "\n" + response_text
+        else:
+            response_text = await response.text()
+            assert False, "Received HTTP error: " + response_text        
 
     def _get_usd_pln_nbp(self, iso_date) -> float:
         """Returns USD/PLN rate for date. The rates are cached, if there is a hit cached value is returned.
@@ -86,18 +149,19 @@ class NbpRatesDm1:
             # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-06-29/
             headers = {'Accept': 'application/json'}
             url = 'https://api.nbp.pl/api/exchangerates/rates/A/USD/'+iso_date
-            response = requests.get(url, verify=False, headers=headers)
-            if response.ok:
-                parse = json.loads(response.text)
-                rate = parse['rates'][0]['mid']
-                assert(isinstance(rate, (int, float))), "Rate is neither int nor float, wrong data received from API: "\
-                                                    + str(rate)
-                self.rates_cache[iso_date]=float(rate)
-                return float(rate)
-            elif response.text == "404 NotFound - Not Found - Brak danych":
-                return -1
-            else:
-                assert False, "Received http error: " + response.text
+            if not is_pyscript:
+                response = requests.get(url, verify=False, headers=headers)
+                if response.ok:
+                    parse = json.loads(response.text)
+                    rate = parse['rates'][0]['mid']
+                    assert(isinstance(rate, (int, float))), "Rate is neither int nor float, wrong data received from API: "\
+                                                        + str(rate)
+                    self.rates_cache[iso_date]=float(rate)
+                    return float(rate)
+                elif response.text == "404 NotFound":
+                    return -1
+                else:
+                    assert False, "Received http error: " + response.text
 
 
 class SoldItem:
@@ -443,7 +507,7 @@ def convert_us_string_number_to_float(input: str):
     },
 """
 
-def dividend_events_to_pandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -> pd.DataFrame:
+async def dividend_events_to_pandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -479,7 +543,7 @@ def dividend_events_to_pandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -
     #Add USD rate D-1 to all divident events
         for div in dict_of_divs_dicts.values():
             date = div['DividendDate']
-            div['DividendUSDRate D-1 PLN'] = rates.get_usd_pln_d_1(date)
+            div['DividendUSDRate D-1 PLN'] = await rates.get_usd_pln_d_1(date)
         div_df=pd.DataFrame.from_dict(dict_of_divs_dicts,orient = 'index')
         return div_df
     else:
@@ -487,7 +551,7 @@ def dividend_events_to_pandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -
 
 
 
-def SaleEventsToPandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -> pd.DataFrame:
+async def SaleEventsToPandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -> pd.DataFrame:
     """_summary_
 
     Args:
@@ -504,36 +568,37 @@ def SaleEventsToPandas(obj_list: list[FiscalEvent], rates: NbpRatesDm1) -> pd.Da
     for fin_event in obj_list:
         if fin_event.event_dict["Action"] != "Sale":
             continue
-        #list=[]
-        #list.append(fin_event.event_dict)
-        #event_df=pd.DataFrame.from_dict(list)
-        #list_of_sale_df.append(event_df)
         #print(f"Sale date: {fin_event.event_dict['Date']:%d.%m.%Y}")
         #for each of event_items dicts add ['PurchaseUSDRate D-1 PLN'] = rates.get_usd_pln_d_1(purchase_date)
-        fin_event.event_items_list[:] = [ PurchaseDateRate(x, rates) for x in fin_event.event_items_list ]
-        sale_rate = rates.get_usd_pln_d_1(fin_event.event_dict['Date'])
+        fin_event.event_items_list[:] = [ await PurchaseDateRate(x, rates) for x in fin_event.event_items_list ]
+        sale_rate = await rates.get_usd_pln_d_1(fin_event.event_dict['Date'])
+        
         #for each event_items dicts add ['SaleUSDRate D-1 PLN'] = sale_rate
         fin_event.event_items_list[:] = [ AddSaleRate(x, sale_rate) for x in fin_event.event_items_list ]
+        
         #drop keys/values not needed
         fin_event.event_items_list[:] = [ DropSurplusKeys(x) for x in fin_event.event_items_list ]
         fin_event.event_items_list[:] = [ AddSaleItemMissingKeys(x) for x in fin_event.event_items_list ]
+        
         #Add event_item representing the Fiscal Event type Sale itself - for fee tracking in the same table.
         fin_event.copy_sale_to_its_details(sale_rate)
-        #fin_event.event_items_list.append(CreateSaleEventItem(fin_event, sale_rate))
+        
         #Create a dataframe
         sale_df=pd.DataFrame.from_dict(fin_event.event_items_list)
+        
         #Rename columns to be self-explanatory
         sale_df=sale_df.rename(columns={'SalePrice' : 'SalePrice USD', 'Date' : 'SaleDate', 'GrossProceeds' : 'GrossProceeds USD', \
                                         'PurchasePrice' : 'PurchasePrice USD', 'Amount': 'Amount USD', 'FeesAndCommissions': 'FeesAndCommissions USD'})
-        list_of_sale_df.append(sale_df)
- #       sale_df['purchase_rate_d-1']=sale_df.apply(lambda x: PurchaseDate(x, rates), axis=1)
-        #print(event_df)
+        
+        # Only add non-empty DataFrames
+        if not sale_df.empty:
+            list_of_sale_df.append(sale_df)
 
     if list_of_sale_df == []:
         #If there are no sales events return and empty DataFrame.
         return pd.DataFrame()
     else:
-        return pd.concat(list_of_sale_df)
+        return pd.concat(list_of_sale_df, ignore_index=True)
 
 def CreateSaleEventItem(fin_event: FiscalEvent, sale_rate: float) -> dict:
     """To present sale items itself along with fees for each sale event we need to add to dataframe a row with "Date", "Fee", "Type": "Sell", "Amount", "Shares"
@@ -580,13 +645,13 @@ def AddSaleRate(sale_item: dict, sale_rate: float):
     sale_item['SaleUSDRate D-1 PLN'] = sale_rate
     return sale_item
 
-def PurchaseDateRate(sale_item: dict, rates: NbpRatesDm1):
+async def PurchaseDateRate(sale_item: dict, rates: NbpRatesDm1):
     #ESPP and Div Reinvestment are purchased at Purchase Date
     #RS are vested at Vest Date
     if sale_item['Type']=="RS":
         sale_item['PurchaseDate'] = sale_item['VestDate']
     purchase_date = sale_item['PurchaseDate']
-    sale_item['PurchaseUSDRate D-1 PLN'] = rates.get_usd_pln_d_1(purchase_date)
+    sale_item['PurchaseUSDRate D-1 PLN'] = await rates.get_usd_pln_d_1(purchase_date)
     return sale_item
 
 def DropSurplusKeys(sale_item: dict):
@@ -606,13 +671,13 @@ def DropSurplusKeys(sale_item: dict):
     return sale_item
 
 
-def PurchaseDate(sale_df: pd.DataFrame, rates: NbpRatesDm1):
+async def PurchaseDate(sale_df: pd.DataFrame, rates: NbpRatesDm1):
     #ESPP and Div Reinvestment are purchased at Purchase Date
     if sale_df['Type']!="RS":
-        return rates.get_usd_pln_d_1(sale_df['PurchaseDate'])
+        return await rates.get_usd_pln_d_1(sale_df['PurchaseDate'])
     #RS are vested at Vest Date
     else:
-        return rates.get_usd_pln_d_1(sale_df['VestDate'])
+        return await rates.get_usd_pln_d_1(sale_df['VestDate'])
 
 def add_sales_sums(items: pd.DataFrame) -> pd.DataFrame:
     items['PurchaseCost PLN']=items['Shares']*items['PurchasePrice USD']*items['PurchaseUSDRate D-1 PLN']
@@ -637,6 +702,7 @@ def calculate_dividend_tax(items: pd.DataFrame):
     items.loc['Total','TaxWitholdedInUS PLN'] = items['TaxWitholdedInUS PLN'].sum()
     items.loc['Total','TaxPL PLN'] = items['TaxPL PLN'].sum()
     items.loc['Total','TaxDue PLN'] = items.loc['Total','TaxPL PLN'] - items.loc['Total','TaxWitholdedInUS PLN']
+
 
 def format_xlsx(workbook: xlsxwriter.workbook, excel_out: pd.DataFrame, worksheet: xlsxwriter.worksheet.Worksheet) -> bool:
         #set formatting
@@ -701,6 +767,7 @@ def format_xlsx(workbook: xlsxwriter.workbook, excel_out: pd.DataFrame, workshee
                                 workbook.add_format(date_dict | blue_dict))  # row_num + 1 because of the header row 5 is the index of column 'SaleDate'
         worksheet.set_row(len(excel_out), None, green_format)  # row_num + 1 to skip the header row
         worksheet.autofit()
+        return True
 
 def format_df_two_decimal_numbers(DF: pd.DataFrame):
     """_summary_
@@ -737,7 +804,7 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
     last_row = len(df.index) - 1
     for key, value in bottom_comments.items():
         col_index=df.columns.get_loc(key)
-        # Convert the column index to Excel-style alphanumeric column string (e.g., 0 -> 'A', 25 -> 'Z', 26 -> 'AA', etc.)
+        # Convert the column index to Excel-style alphanumeric column string (e.g., 0 -> 'A', 25 -> 'Z',  26 -> 'AA', etc.)
         col_letter = xlsxwriter.utility.xl_col_to_name(col_index)
         # Construct the cell reference (e.g., 'A1', 'B2', etc.)
         cell_reference = f"{col_letter}{last_row + 2}"  # Adding 2 because Excel is 1-indexed and there's a header row
@@ -745,7 +812,121 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
         worksheet.write_comment(cell_reference, value)
 
 
-def main():
+def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.BytesIO:
+    """
+    Generates an Excel file containing tax reports for sales and dividends, and returns it as an in-memory byte stream.
+
+    Args:
+        sale_full_df (pd.DataFrame): DataFrame containing sales transaction data.
+            Expected columns: 'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+                               'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+                               'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+                               'TotalCost PLN', 'Tax PLN'
+        dividend_df (pd.DataFrame): DataFrame containing dividend data.
+            Expected columns: 'Income USD', 'DividendUSDRate D-1 PLN', 'TaxWitholded USD', 'Income PLN',
+                               'TaxWitholdedInUS PLN', 'TaxPL PLN', 'TaxDue PLN'
+
+    Returns:
+        io.BytesIO: An in-memory Excel file containing the tax reports.
+    """
+
+    output = io.BytesIO()
+
+    with pd.ExcelWriter(output, engine='xlsxwriter', datetime_format='MM/DD/YYYY') as writer:
+        workbook = writer.book
+
+        if not sale_full_df.empty:
+            excel_out = sale_full_df[[
+                'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+                'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+                'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+                'TotalCost PLN', 'Tax PLN'
+            ]]
+            excel_out.to_excel(writer, index=False, sheet_name='Sale Tax')
+            worksheet = writer.sheets['Sale Tax']
+
+            header_comments = {
+                'PurchaseCost PLN': '= Shares * PurchasePrice USD * PurchaseUSDRate D-1 PLN',
+                'FeesAndCommissions PLN': '= FeesAndCommissions USD * SaleUSDRate D-1 PLN',
+                'GrossProceeds PLN': '= GrossProceeds USD * SaleUSDRate D-1 PLN',
+                'TotalCost PLN': '= sum(PurchaseCost PLN) + sum(FeesAndCommissions PLN)',
+                'Tax PLN': '= ( sum(GrossProceeds PLN) - TotalCost PLN ) * 0.19'
+            }
+            bottom_comments = {
+                'GrossProceeds PLN': 'Into Pit38 C.22',
+                'TotalCost PLN': 'Into Pit38 C.23'
+            }
+
+            add_comments(worksheet, excel_out, bottom_comments=bottom_comments, header_comments=header_comments)
+            format_xlsx(workbook, excel_out, worksheet)
+        else:
+            print("There were no sale transactions.")
+
+        if not dividend_df.empty:
+            dividend_df.to_excel(writer, index=False, sheet_name='Dividend Tax')
+            worksheet = writer.sheets['Dividend Tax']
+
+            header_comments = {
+                'Income PLN': '= Income USD * DividendUSDRate D-1 PLN',
+                'TaxWitholdedInUS PLN': '= TaxWitholded USD * DividendUSDRate D-1 PLN',
+                'TaxPL PLN': '= Income PLN * 0.19',
+                'TaxDue PLN': '= sum(TaxPL PLN) - sum(TaxWitholdedInUS PLN)'
+            }
+            bottom_comments = {
+                'TaxWitholdedInUS PLN': 'Into Pit38 G.46',
+                'TaxPL PLN': 'Into Pit38 G.45'
+            }
+
+            add_comments(worksheet, dividend_df, header_comments=header_comments, bottom_comments=bottom_comments)
+            format_xlsx(workbook, dividend_df, worksheet)
+        else:
+            print("There were no dividends received.")
+
+    output.seek(0)  # Reset the buffer's position to the beginning
+    return output
+
+class TestNbpRatesDm1(unittest.TestCase):
+
+    def test_get_usd_pln_d_1_cached(self):
+        rates = NbpRatesDm1()
+        date = (datetime.strptime("12/07/2020", "%m/%d/%Y")).date()
+        rates.rates_cache[(date.isoformat())] = 3.9646
+        # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-12/
+        # due to Sunday expected d-1 = http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-10/
+        expected = 3.9646
+        self.assertEqual(asyncio.run(rates.get_usd_pln_d_1("12/07/2020")), expected)
+
+    def test_get_usd_pln_nbp(self):
+        rates = NbpRatesDm1()
+        expected_value = 3.9656
+        result = rates.get_usd_pln_nbp("2020-06-29")
+        self.assertEqual(result, expected_value)
+
+    def test_get_usd_pln_nbp_404(self):
+        # Check if function properly raises exception if it gets "wrong" 404.
+        rates = NbpRatesDm1()
+        self.assertRaises(AssertionError, rates.get_usd_pln_nbp("20210-06-29"))
+
+
+
+def ConvDate(input: pd.DataFrame):
+    for name, values in input[['PurchaseDate','VestDate','SubscriptionDate']].items():
+        #if not empty
+        if bool(values) == True:
+            input[name] = datetime.strptime(values, '%m/%d/%Y')
+        #print(f"{input[name]}")
+    return input
+        #date = datetime.strptime(date, '%m/%d/%Y')
+        #print(f'{date.day}.{date.month}.{date.year}')
+
+def ConvDate(input: str):
+    line=input.split()
+    line[:]=[datetime.strptime(date, '%m/%d/%Y') for date in line]
+    return line
+
+
+
+async def main():
 
     parser = argparse.ArgumentParser(description="Convert export of previous year transactions from Charles Schwab in JSON format to XLSX")
     parser.add_argument("input_json", help="Name of the input JSON file")
@@ -767,24 +948,46 @@ def main():
 
     rates = NbpRatesDm1()
     fiscal_events_list = parse_json_to_fiscal_events_list(data)
-    sale_full_df = SaleEventsToPandas(fiscal_events_list, rates)
+    sale_full_df = await SaleEventsToPandas(fiscal_events_list, rates)
     if not sale_full_df.empty:
-        sale_full_df = sale_full_df.sort_values(by='SaleDate')
+        sale_full_df = sale_full_df.sort_values(by='SaleDate')        
         sale_full_df = add_sales_sums(sale_full_df)
-        sale_full_df.loc['Total'] = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
-                                                            'GrossProceeds PLN']).sum(numeric_only=True)
+        sale_total = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
+                                                            'GrossProceeds PLN'])
+        totals = sale_total.sum(numeric_only=True)
+#        sale_full_df.loc['Total'] = sale_full_df.filter(items=['PurchaseCost PLN','FeesAndCommissions PLN', \
+#                                                            'GrossProceeds PLN']).sum(numeric_only=True)
+        # Add totals row to sale_full_df
+        sale_full_df.loc['Total', totals.index] = totals.values
+
+        # Optionally fill NaN in other columns for 'Total' row with default values
+        #sale_full_df.fillna({'SaleDate': '', 'Type': '', 'Shares': 0, 'SalePrice USD': 0, 'PurchaseDate': '', 'PurchasePrice USD': 0,
+        #                     'GrossProceeds USD': 0, 'PurchaseUSDRate D-1 PLN': 0, 'SaleUSDRate D-1 PLN': 0, 'FeesAndCommissions USD': 0,
+        #                     'Amount USD': 0, 'TotalCost PLN': 0}, inplace=True)
+        #sale_full_df.fillna(0,inplace=True)
+
         calculate_tax(sale_full_df)
         format_df_two_decimal_numbers(sale_full_df)
-    dividend_df = dividend_events_to_pandas(fiscal_events_list, rates)
+    dividend_df = await dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         calculate_dividend_tax(dividend_df)
         format_df_two_decimal_numbers(dividend_df)
     print(f'\n{sale_full_df}\n')
     print(f'\n{dividend_df}\n')
+    
+        # Generate the Excel file as io.BytesIO
+    excel_file = generate_tax_report(sale_full_df, dividend_df)
+
+    # Save the io.BytesIO object to a file
+    with open("tax_report.xlsx", "wb") as f:
+        f.write(excel_file.read())
+
+    print("Excel file 'tax_report.xlsx' saved successfully.")
+
 
 #    dividend_df = calculate_dividend_tax(dividend_df)
 #    print(f'\n{sale_full_df}\n')
-    with pd.ExcelWriter(args.output_xlsx, datetime_format='MM/DD/YYYY', engine='xlsxwriter') as writer:
+"""    with pd.ExcelWriter(args.output_xlsx, datetime_format='MM/DD/YYYY', engine='xlsxwriter') as writer:
         # Access the xlsxwriter workbook object
         workbook  = writer.book
 
@@ -837,47 +1040,11 @@ def main():
             format_xlsx(workbook, dividend_df, worksheet)
         else:
             print("There were no dividends received.")
+"""
+
+    
 
 
-
-class TestNbpRatesDm1(unittest.TestCase):
-
-    def test_get_usd_pln_d_1_cached(self):
-        rates = NbpRatesDm1()
-        date = (datetime.strptime("12/07/2020", "%m/%d/%Y")).date()
-        rates.rates_cache[(date.isoformat())] = 3.9646
-        # http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-12/
-        # due to Sunday expected d-1 = http://api.nbp.pl/api/exchangerates/rates/A/USD/2020-07-10/
-        expected = 3.9646
-        self.assertEqual(rates.get_usd_pln_d_1("12/07/2020"), expected)
-
-    def test_get_usd_pln_nbp(self):
-        rates = NbpRatesDm1()
-        expected_value = 3.9656
-        result = rates.get_usd_pln_nbp("2020-06-29")
-        self.assertEqual(result, expected_value)
-
-    def test_get_usd_pln_nbp_404(self):
-        # Check if function properly raises exception if it gets "wrong" 404.
-        rates = NbpRatesDm1()
-        self.assertRaises(AssertionError, rates.get_usd_pln_nbp("20210-06-29"))
-
-
-
-def ConvDate(input: pd.DataFrame):
-    for name, values in input[['PurchaseDate','VestDate','SubscriptionDate']].items():
-        #if not empty
-        if bool(values) == True:
-            input[name] = datetime.strptime(values, '%m/%d/%Y')
-        #print(f"{input[name]}")
-    return input
-        #date = datetime.strptime(date, '%m/%d/%Y')
-        #print(f'{date.day}.{date.month}.{date.year}')
-
-def ConvDate(input: str):
-    line=input.split()
-    line[:]=[datetime.strptime(date, '%m/%d/%Y') for date in line]
-    return line
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
