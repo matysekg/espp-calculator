@@ -1,12 +1,14 @@
 #!/bin/python3
 import json
 import mainjson
-import sys
+#import sys
+#import io
+import base64
 from pyscript import document, window
-from js import alert,Blob, document, URL
+from js import alert,Blob, document, URL, File, Uint8Array
 from pyodide.ffi.wrappers import add_event_listener
 from pprint import pprint
-import io
+
 
 def read_file_content(content):
     try:
@@ -41,6 +43,47 @@ async def upload_file_and_process(e):
             # Insert HTML tables into the webpage
             document.getElementById("saleTable").innerHTML = sale_html
             document.getElementById("dividendTable").innerHTML = dividend_html
+
+            #Create a file and a download URL
+            print(f"Type of excel_file: {type(excel_file)}")
+            data = excel_file.read()
+            base64_encoded = base64.b64encode(data).decode('UTF-8')
+            octet_string = "data:application/octet-stream;base64,"
+            download_string = octet_string + base64_encoded
+
+            print(f"Download string: \n{download_string}")
+            
+            #Handle case where two json files are handled one after another
+            #If the <a> with id "downloadLink" exists, then delete it first
+            hidden_link = document.getElementById("downloadLink")
+            if str(type(hidden_link)) != "<class 'pyodide.ffi.JsNull'>":
+                document.body.removeChild(hidden_link)
+
+            #Set the default filename to be <json_file>.json
+            json_filename = first_file.name
+            xlsx_filename = json_filename.replace(".json", ".xlsx")
+            print(f"Type of hidden link: {type(hidden_link)}") #Hidden link id: {hidden_link.id}")
+            hidden_link = document.createElement("a")
+            hidden_link.setAttribute("download", xlsx_filename)
+            hidden_link.setAttribute("href", download_string)
+            hidden_link.id = "downloadLink"
+            #Activate download button
+            document.getElementById("downloadButton").hidden = False
+
+            # data = "Hello world, this is some text."
+            # encoded_data = data.encode('utf-8')
+            # my_stream = io.BytesIO(encoded_data)
+            # js_array = Uint8Array.new(len(encoded_data))
+            # js_array.assign(my_stream.getbuffer())
+            # file = File.new([js_array], "unused_file_name.txt", {type: "text/plain"})
+            # url = URL.createObjectURL(file)
+    
+            # # The second parameter here is the actual name of the file that will appear in the user's file system
+            # hidden_link.setAttribute("download", "my_other_file_name.txt")
+            # hidden_link.setAttribute("href", url)
+            document.body.appendChild(hidden_link)
+
+
         else:
             document.getElementById("output").innerText = "No file selected."
     except Exception as e:
@@ -85,5 +128,18 @@ async def main(data: dict):
     return output
 
 # Add an event listener to the show active sessions checkbox
+file_select = document.getElementById("jsonFile")
+file_select.disabled = False
 upload_button = document.querySelector('#uploadButton')
+upload_button.disabled = False
 add_event_listener(upload_button,'click', upload_file_and_process)
+
+def downloadFile(*args):
+    hidden_link = document.getElementById("downloadLink")
+    hidden_link.click()
+
+
+
+add_event_listener(document.getElementById("downloadButton"), "click", downloadFile)
+
+print("Initialisation done")
