@@ -8,8 +8,6 @@ import requests
 import json
 #from unittest import TestCase
 import re
-from datetime import datetime
-from datetime import timedelta
 import pandas as pd
 import xlsxwriter
 import xlsxwriter.worksheet
@@ -17,6 +15,9 @@ import argparse
 import sys
 import asyncio
 import io
+from datetime import datetime
+from datetime import timedelta
+from textwrap import dedent, wrap
 
 try:
     # If PyScript is available, js will be imported
@@ -388,7 +389,8 @@ class FiscalEvent:
         return True
 
 def parse_json_to_fiscal_events_list(data: dict) -> list[FiscalEvent]:
-    """converts transactions from dictionary to list of FiscalEvent
+    """
+    converts transactions from dictionary to list of FiscalEvent
 
     Args:
         data (dict): JSON transactions history loaded into dict
@@ -781,6 +783,36 @@ def format_df_two_decimal_numbers(DF: pd.DataFrame):
             DF[column_name] = DF[column_name].apply(lambda x: float("{:.2f}".format(x)))
     return DF
 
+
+
+def count_wrapped_lines(comment):
+    """
+    Approximate esitmate of the number of lines in a wrapped comment.
+    """
+    num_lines = 0
+    segments = comment.splitlines()
+    for segment in segments:
+        if segment == "":
+            num_lines += 1
+        else:
+            lines = wrap(segment, width=30)
+            num_lines += len(lines)
+
+    if num_lines == 0:
+        num_lines = 1
+
+    return num_lines
+
+
+
+def comment_height_in_pixels(comment):
+    """
+    Map the number of lines to a pixel height.
+    """
+    num_lines = count_wrapped_lines(comment)
+    return num_lines * 16
+
+
 def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comments: dict, header_comments: dict = {}):
     """Function that adds comments to named colums in excel sheet last row.
 
@@ -802,22 +834,30 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
 
     # Find the last row and last column (considering 0-index)
     last_row = len(df.index) - 1
+    comment_counter = 0  # Initialize the counter starting from 0
     for key, value in bottom_comments.items():
         col_index=df.columns.get_loc(key)
         # Convert the column index to Excel-style alphanumeric column string (e.g., 0 -> 'A', 25 -> 'Z',  26 -> 'AA', etc.)
         col_letter = xlsxwriter.utility.xl_col_to_name(col_index)
         # Construct the cell reference (e.g., 'A1', 'B2', etc.)
         cell_reference = f"{col_letter}{last_row + 2}"  # Adding 2 because Excel is 1-indexed and there's a header row
-            # Add a comment to the GrossProceeds PLN sum cell
-        worksheet.write_comment(cell_reference, value)
+        x_offset = comment_counter * 100 - 10   # Calculate the x_offset based on the comment counter
+        y_offset = 180 - 165 * comment_counter
+            # Add a comment to the GrossProceeds PLN sum cell; set the size of the note to fit the comment text, and move them around 
+        worksheet.write_comment(cell_reference, value, 
+                                {'visible': True, "width": 600, "height": comment_height_in_pixels(value) - 30, 
+                                 "y_offset": y_offset, "x_offset": x_offset, "font_size": 11} )
+        comment_counter += 1  # Update the counter inside the loop
 
 
-def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.BytesIO:
+
+
+def generate_tax_report(sale_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.BytesIO:
     """
     Generates an Excel file containing tax reports for sales and dividends, and returns it as an in-memory byte stream.
 
     Args:
-        sale_full_df (pd.DataFrame): DataFrame containing sales transaction data.
+        sale_df (pd.DataFrame): DataFrame containing sales transaction data.
             Expected columns: 'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
                                'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
                                'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
@@ -835,14 +875,8 @@ def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -
     with pd.ExcelWriter(output, engine='xlsxwriter', datetime_format='MM/DD/YYYY') as writer:
         workbook = writer.book
 
-        if not sale_full_df.empty:
-            excel_out = sale_full_df[[
-                'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
-                'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
-                'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
-                'TotalCost PLN', 'Tax PLN'
-            ]]
-            excel_out.to_excel(writer, index=False, sheet_name='Sale Tax')
+        if not sale_df.empty:
+            sale_df.to_excel(writer, index=False, sheet_name='Sale Tax')
             worksheet = writer.sheets['Sale Tax']
 
             header_comments = {
@@ -853,12 +887,29 @@ def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -
                 'Tax PLN': '= ( sum(GrossProceeds PLN) - TotalCost PLN ) * 0.19'
             }
             bottom_comments = {
-                'GrossProceeds PLN': 'Into Pit38 C.22',
-                'TotalCost PLN': 'Into Pit38 C.23'
-            }
+                'GrossProceeds PLN': dedent('''\
+                    Into PIT-38 -> Income -> 
+                    Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
+                    Revenue (zł) - PIT-38 C22
 
-            add_comments(worksheet, excel_out, bottom_comments=bottom_comments, header_comments=header_comments)
-            format_xlsx(workbook, excel_out, worksheet)
+                    Also:
+                    Tick "Revenue earned abroad";
+                    Income earned abroad ->
+                    Income type - other revenue, including revenue earned abroad ->
+                    Income earned abroad (zł) - PIT-ZG C29
+
+                    and 0zł into:
+                    Show tax on this income paid abroad (zł) - PIT-ZG C30\
+                    '''),
+                'TotalCost PLN': dedent('''\
+                    Into PIT-38 -> Income ->
+                    Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
+                    Tax deductible expenses (zł) - PIT-38 C.23\
+                    ''')
+                                        
+            }
+            add_comments(worksheet, sale_df, bottom_comments=bottom_comments, header_comments=header_comments)
+            format_xlsx(workbook, sale_df, worksheet)
         else:
             print("There were no sale transactions.")
 
@@ -873,10 +924,19 @@ def generate_tax_report(sale_full_df: pd.DataFrame, dividend_df: pd.DataFrame) -
                 'TaxDue PLN': '= sum(TaxPL PLN) - sum(TaxWitholdedInUS PLN)'
             }
             bottom_comments = {
-                'TaxWitholdedInUS PLN': 'Into Pit38 G.46',
-                'TaxPL PLN': 'Into Pit38 G.45'
+                'TaxPL PLN': dedent('''\
+                    Into PIT-38 -> Income ->
+                    Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
+                    Lump-sum tax on revenue (income) earned abroad ->
+                    Lump-sum tax (zł) - PIT-38 G.47\
+                    '''),
+                'TaxWitholdedInUS PLN': dedent('''\
+                    Into PIT-38 -> Income ->
+                    Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
+                    Lump-sum tax on revenue (income) earned abroad ->
+                    Tax paid abroad (zł) - PIT-38 G.48\
+                    ''')
             }
-
             add_comments(worksheet, dividend_df, header_comments=header_comments, bottom_comments=bottom_comments)
             format_xlsx(workbook, dividend_df, worksheet)
         else:
@@ -968,15 +1028,27 @@ async def main():
 
         calculate_tax(sale_full_df)
         format_df_two_decimal_numbers(sale_full_df)
+        #keep only useful columns and set them in the desired order
+        sale_df = sale_full_df[[
+            'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+            'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+            'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+            'TotalCost PLN', 'Tax PLN'
+            ]]
     dividend_df = await dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         calculate_dividend_tax(dividend_df)
         format_df_two_decimal_numbers(dividend_df)
-    print(f'\n{sale_full_df}\n')
+        #keep only useful columns and set them in the desired order
+        dividend_df=dividend_df[[
+            'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
+            'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
+            ]]
+    print(f'\n{sale_df}\n')
     print(f'\n{dividend_df}\n')
     
         # Generate the Excel file as io.BytesIO
-    excel_file = generate_tax_report(sale_full_df, dividend_df)
+    excel_file = generate_tax_report(sale_df, dividend_df)
 
     # Save the io.BytesIO object to a file
     with open("tax_report.xlsx", "wb") as f:
@@ -986,13 +1058,13 @@ async def main():
 
 
 #    dividend_df = calculate_dividend_tax(dividend_df)
-#    print(f'\n{sale_full_df}\n')
+#    print(f'\n{sale_df}\n')
 """    with pd.ExcelWriter(args.output_xlsx, datetime_format='MM/DD/YYYY', engine='xlsxwriter') as writer:
         # Access the xlsxwriter workbook object
         workbook  = writer.book
 
-        if not sale_full_df.empty:
-            excel_out = sale_full_df[['Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN', 'SaleDate', 'SalePrice USD', \
+        if not sale_df.empty:
+            excel_out = sale_df[['Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN', 'SaleDate', 'SalePrice USD', \
                         'GrossProceeds USD', 'Amount USD','FeesAndCommissions USD', 'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN', \
                             'TotalCost PLN', 'Tax PLN' ]]
             # Write the DataFrame to the Excel file
