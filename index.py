@@ -104,14 +104,26 @@ async def main(data: dict):
         #sale_full_df.fillna('',inplace=True)
         mainjson.calculate_tax(sale_full_df)
         mainjson.format_df_two_decimal_numbers(sale_full_df)
+        #keep only useful columns and set them in the desired order
+        sale_df = sale_full_df[[
+            'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+            'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+            'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+            'TotalCost PLN', 'Tax PLN'
+            ]]
     dividend_df = await mainjson.dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         mainjson.calculate_dividend_tax(dividend_df)
         mainjson.format_df_two_decimal_numbers(dividend_df)
-    print(f'\n{sale_full_df}\n')
+        #keep only useful columns and set them in the desired order
+        dividend_df=dividend_df[[
+            'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
+            'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
+            ]]
+    print(f'\n{sale_df}\n')
     print(f'\n{dividend_df}\n')
 
-    excel_file = mainjson.generate_tax_report(sale_full_df, dividend_df)
+    excel_file = mainjson.generate_tax_report(sale_df, dividend_df)
 
     output = [sale_full_df, dividend_df, excel_file]
     return output
