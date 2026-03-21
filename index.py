@@ -191,4 +191,5 @@ def downloadFile(*args):
 
 add_event_listener(document.getElementById("downloadButton"), "click", downloadFile)
 
+document.body.removeChild(document.getElementById("loading"))
 print("Initialisation done")
