@@ -37,8 +37,8 @@ async def upload_file_and_process(e):
             #pprint(f"json: {dictionary["Transactions"]}")
             sale_full_df, dividend_df, excel_file = await main(data)
             # Convert DataFrames to HTML tables
-            sale_html = sale_full_df.to_html(classes='data-table', border=1, na_rep='')
-            dividend_html = dividend_df.to_html(classes='data-table', border=1, na_rep='')
+            sale_html = sale_full_df.to_html(classes='data-table', border=1, na_rep='', index=False)
+            dividend_html = dividend_df.to_html(classes='data-table', border=1, na_rep='', index=False)
 
             # Insert HTML tables into the webpage
             document.getElementById("saleTable").innerHTML = sale_html
@@ -120,12 +120,26 @@ async def main(data: dict):
             'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
             'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
             ]]
-    print(f'\n{sale_df}\n')
-    print(f'\n{dividend_df}\n')
 
-    excel_file = mainjson.generate_tax_report(sale_df, dividend_df)
+    # 1. Reset the index so '2023-10-25...' and 'Total' become a regular column
+    sale_df_to_print = sale_full_df.reset_index()
+    dividend_df_to_print = dividend_df.reset_index()
 
-    output = [sale_full_df, dividend_df, excel_file]
+    # 2. The index column is usually named 'index'. 
+    # We replace every value in that column with an empty string UNLESS it is 'Total'
+    sale_df_to_print['index'] = sale_df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+    dividend_df_to_print['index'] = dividend_df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+
+    # 3. Rename the column to an empty string if you don't want a header for it
+    sale_df_to_print = sale_df_to_print.rename(columns={'index': ''})
+    dividend_df_to_print = dividend_df_to_print.rename(columns={'index': ''})
+
+    print(f'\n{sale_df_to_print.to_string(index=False)}\n')
+    print(f'\n{dividend_df_to_print.to_string(index=False)}\n')
+
+    excel_file = mainjson.generate_tax_report(sale_df_to_print, dividend_df_to_print)
+
+    output = [sale_df_to_print, dividend_df_to_print, excel_file]
     return output
 
 

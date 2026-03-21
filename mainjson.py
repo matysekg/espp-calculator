@@ -541,7 +541,7 @@ async def dividend_events_to_pandas(obj_list: list[FiscalEvent], rates: NbpRates
             amount = fin_event.event_dict['Amount']
             dict_of_divs_dicts[str(date)]['TaxWitholded USD'] = amount * -1
         else : continue
-    if dict_of_divs_dicts != []:
+    if len(dict_of_divs_dicts) > 0:
     #Add USD rate D-1 to all divident events
         for div in dict_of_divs_dicts.values():
             date = div['DividendDate']
@@ -1044,17 +1044,31 @@ async def main():
             'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
             'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
             ]]
-    print(f'\n{sale_df}\n')
-    print(f'\n{dividend_df}\n')
+    print(f'\n{sale_df.to_string(index=False)}\n')
+
+    # 1. Reset the index so '2023-10-25...' and 'Total' become a regular column
+    df_to_print = dividend_df.reset_index()
+
+    # 2. The index column is usually named 'index'. 
+    # We replace every value in that column with an empty string UNLESS it is 'Total'
+    df_to_print['index'] = df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+
+    # 3. Rename the column to an empty string if you don't want a header for it
+    df_to_print = df_to_print.rename(columns={'index': ''})
+
+    # 4. Print using index=False to hide the new 0, 1, 2... row numbers
+    print(df_to_print.to_string(index=False))
+
+    #print(f'\n{dividend_df.to_string(index=False)}\n')
     
         # Generate the Excel file as io.BytesIO
     excel_file = generate_tax_report(sale_df, dividend_df)
 
     # Save the io.BytesIO object to a file
-    with open("tax_report.xlsx", "wb") as f:
+    with open(f"{args.output_xlsx}", "wb") as f:
         f.write(excel_file.read())
 
-    print("Excel file 'tax_report.xlsx' saved successfully.")
+    print(f"Excel file '{args.output_xlsx}' saved successfully.")
 
 
 #    dividend_df = calculate_dividend_tax(dividend_df)
