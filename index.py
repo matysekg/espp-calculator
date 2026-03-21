@@ -105,7 +105,7 @@ async def main(data: dict):
         mainjson.calculate_tax(sale_full_df)
         mainjson.format_df_two_decimal_numbers(sale_full_df)
         #keep only useful columns and set them in the desired order
-        sale_df = sale_full_df[[
+        sale_full_df = sale_full_df[[
             'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
             'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
             'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
