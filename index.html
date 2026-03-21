@@ -24,17 +24,18 @@
     </head>
 <body>
     <h1 id="loading">Loading...</h1>
-    <h1>Upload a JSON File</h1>
-    <input type="file" id="jsonFile" accept=".json" disabled/>
-    <button id="uploadButton" disabled>Process the file</button>
-    <button id="downloadButton" disabled>Download XLSX</button>
+    <div id="workArea" style="display: none;">
+        <h1>Upload a JSON File</h1>
+        <input type="file" id="jsonFile" accept=".json" disabled/>
+        <button id="uploadButton" disabled>Process the file</button>
+        <button id="downloadButton" disabled>Download XLSX</button>
 
-    <div id="output" style="margin-top: 20px; white-space: pre-wrap;"></div>
+        <div id="output" style="margin-top: 20px; white-space: pre-wrap;"></div>
 
-    <!-- Placeholder for DataFrames -->
-    <div id="saleTable"></div>
-    <div id="dividendTable"></div>
-    
+        <!-- Placeholder for DataFrames -->
+        <div id="saleTable"></div>
+        <div id="dividendTable"></div>
+    </div>
     <section class="pyscript">
         <script type="py" src="index.py" config="./pyscript.toml"></script>
     </section>

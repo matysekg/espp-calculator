@@ -192,4 +192,5 @@ def downloadFile(*args):
 add_event_listener(document.getElementById("downloadButton"), "click", downloadFile)
 
 document.body.removeChild(document.getElementById("loading"))
+document.getElementById("workArea").style.display = ""
 print("Initialisation done")
