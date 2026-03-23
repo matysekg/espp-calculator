@@ -15,6 +15,8 @@ import argparse
 import sys
 import asyncio
 import io
+import certifi
+import ssl
 from datetime import datetime
 from datetime import timedelta
 from textwrap import dedent, wrap
@@ -79,8 +81,15 @@ class NbpRatesDm1:
             
     
     async def _get_usd_pln_nbp_python(self, url, headers) -> float:
-        """Fetch rate using aiohttp for standalone Python."""
-        async with aiohttp.ClientSession() as session:
+        """Fetch rate using aiohttp for standalone Python with SSL fix."""
+        
+        # Create an SSL context using certifi's certificate bundle
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        
+        # Pass the ssl_context to the TCPConnector
+        connector = aiohttp.TCPConnector(ssl=ssl_context)
+
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.get(url, headers=headers) as response:
                 if response.status == 200:
                     parse = await response.json()
