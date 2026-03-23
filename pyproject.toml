@@ -1,0 +1,13 @@
+# pyproject.toml
+[project]
+name = "espp-calculator-venv"
+version = "0.1.0"
+# The tool requires Python 3.11+,
+requires-python = ">=3.11"
+dependencies = [
+    "requests",
+    "pandas",
+    "xlsxwriter",
+    "aiohttp",
+    "certifi",
+]
