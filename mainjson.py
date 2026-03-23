@@ -1044,6 +1044,10 @@ async def main():
             'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
             'TotalCost PLN', 'Tax PLN'
             ]]
+        print(f'\nSales: \n{sale_df.to_string(index=False)}\n')
+    else :
+        sale_df = sale_full_df
+        
     dividend_df = await dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         calculate_dividend_tax(dividend_df)
@@ -1053,24 +1057,20 @@ async def main():
             'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
             'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
             ]]
-    print(f'\n{sale_df.to_string(index=False)}\n')
+        # 1. Reset the index so '2023-10-25...' and 'Total' become a regular column
+        df_to_print = dividend_df.reset_index()
 
-    # 1. Reset the index so '2023-10-25...' and 'Total' become a regular column
-    df_to_print = dividend_df.reset_index()
+        # 2. The index column is usually named 'index'. 
+        # We replace every value in that column with an empty string UNLESS it is 'Total'
+        df_to_print['index'] = df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
 
-    # 2. The index column is usually named 'index'. 
-    # We replace every value in that column with an empty string UNLESS it is 'Total'
-    df_to_print['index'] = df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+        # 3. Rename the column to an empty string if you don't want a header for it
+        df_to_print = df_to_print.rename(columns={'index': ''})
 
-    # 3. Rename the column to an empty string if you don't want a header for it
-    df_to_print = df_to_print.rename(columns={'index': ''})
-
-    # 4. Print using index=False to hide the new 0, 1, 2... row numbers
-    print(df_to_print.to_string(index=False))
-
-    #print(f'\n{dividend_df.to_string(index=False)}\n')
+        # 4. Print using index=False to hide the new 0, 1, 2... row numbers
+        print(df_to_print.to_string(index=False))
     
-        # Generate the Excel file as io.BytesIO
+    # Generate the Excel file as io.BytesIO
     excel_file = generate_tax_report(sale_df, dividend_df)
 
     # Save the io.BytesIO object to a file
