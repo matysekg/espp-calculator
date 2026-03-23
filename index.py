@@ -37,21 +37,20 @@ async def upload_file_and_process(e):
             #pprint(f"json: {dictionary["Transactions"]}")
             sale_full_df, dividend_df, excel_file = await main(data)
             # Convert DataFrames to HTML tables
-            sale_html = sale_full_df.to_html(classes='data-table', border=1, na_rep='')
-            dividend_html = dividend_df.to_html(classes='data-table', border=1, na_rep='')
+            sale_html = sale_full_df.to_html(classes='data-table', border=1, na_rep='', index=False)
+            dividend_html = dividend_df.to_html(classes='data-table', border=1, na_rep='', index=False)
 
             # Insert HTML tables into the webpage
             document.getElementById("saleTable").innerHTML = sale_html
             document.getElementById("dividendTable").innerHTML = dividend_html
 
             #Create a file and a download URL
-            print(f"Type of excel_file: {type(excel_file)}")
             data = excel_file.read()
             base64_encoded = base64.b64encode(data).decode('UTF-8')
             octet_string = "data:application/octet-stream;base64,"
             download_string = octet_string + base64_encoded
 
-            print(f"Download string: \n{download_string}")
+            #print(f"Download string: \n{download_string}")
             
             #Handle case where two json files are handled one after another
             #If the <a> with id "downloadLink" exists, then delete it first
@@ -62,25 +61,15 @@ async def upload_file_and_process(e):
             #Set the default filename to be <json_file>.json
             json_filename = first_file.name
             xlsx_filename = json_filename.replace(".json", ".xlsx")
-            print(f"Type of hidden link: {type(hidden_link)}") #Hidden link id: {hidden_link.id}")
             hidden_link = document.createElement("a")
             hidden_link.setAttribute("download", xlsx_filename)
             hidden_link.setAttribute("href", download_string)
             hidden_link.id = "downloadLink"
+            #deactivate "Process the file" button
+            upload_button = document.querySelector('#uploadButton')
+            upload_button.disabled = True
             #Activate download button
-            document.getElementById("downloadButton").hidden = False
-
-            # data = "Hello world, this is some text."
-            # encoded_data = data.encode('utf-8')
-            # my_stream = io.BytesIO(encoded_data)
-            # js_array = Uint8Array.new(len(encoded_data))
-            # js_array.assign(my_stream.getbuffer())
-            # file = File.new([js_array], "unused_file_name.txt", {type: "text/plain"})
-            # url = URL.createObjectURL(file)
-    
-            # # The second parameter here is the actual name of the file that will appear in the user's file system
-            # hidden_link.setAttribute("download", "my_other_file_name.txt")
-            # hidden_link.setAttribute("href", url)
+            document.getElementById("downloadButton").disabled = False
             document.body.appendChild(hidden_link)
 
 
@@ -115,23 +104,83 @@ async def main(data: dict):
         #sale_full_df.fillna('',inplace=True)
         mainjson.calculate_tax(sale_full_df)
         mainjson.format_df_two_decimal_numbers(sale_full_df)
+        #keep only useful columns and set them in the desired order
+        sale_full_df = sale_full_df[[
+            'Type', 'Shares', 'PurchaseDate', 'PurchasePrice USD', 'PurchaseUSDRate D-1 PLN',
+            'SaleDate', 'SalePrice USD', 'GrossProceeds USD', 'Amount USD', 'FeesAndCommissions USD',
+            'SaleUSDRate D-1 PLN', 'PurchaseCost PLN', 'FeesAndCommissions PLN', 'GrossProceeds PLN',
+            'TotalCost PLN', 'Tax PLN'
+            ]]
     dividend_df = await mainjson.dividend_events_to_pandas(fiscal_events_list, rates)
     if not dividend_df.empty:
         mainjson.calculate_dividend_tax(dividend_df)
         mainjson.format_df_two_decimal_numbers(dividend_df)
-    print(f'\n{sale_full_df}\n')
-    print(f'\n{dividend_df}\n')
+        #keep only useful columns and set them in the desired order
+        dividend_df=dividend_df[[
+            'DividendDate', 'Income USD', 'TaxWitholded USD', 'DividendUSDRate D-1 PLN', 
+            'Income PLN', 'TaxPL PLN', 'TaxWitholdedInUS PLN', 'TaxDue PLN'
+            ]]
 
-    excel_file = mainjson.generate_tax_report(sale_full_df, dividend_df)
+    # 1. Reset the index so '2023-10-25...' and 'Total' become a regular column
+    sale_df_to_print = sale_full_df.reset_index()
+    dividend_df_to_print = dividend_df.reset_index()
 
-    output = [sale_full_df, dividend_df, excel_file]
+    # 2. The index column is usually named 'index'. 
+    # We replace every value in that column with an empty string UNLESS it is 'Total'
+    sale_df_to_print['index'] = sale_df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+    dividend_df_to_print['index'] = dividend_df_to_print['index'].apply(lambda x: x if x == 'Total' else '')
+
+    # 3. Rename the column to an empty string if you don't want a header for it
+    sale_df_to_print = sale_df_to_print.rename(columns={'index': ''})
+    dividend_df_to_print = dividend_df_to_print.rename(columns={'index': ''})
+
+    print(f'\n{sale_df_to_print.to_string(index=False)}\n')
+    print(f'\n{dividend_df_to_print.to_string(index=False)}\n')
+
+    excel_file = mainjson.generate_tax_report(sale_df_to_print, dividend_df_to_print)
+
+    output = [sale_df_to_print, dividend_df_to_print, excel_file]
     return output
 
-# Add an event listener to the show active sessions checkbox
+
 file_select = document.getElementById("jsonFile")
 file_select.disabled = False
+
 upload_button = document.querySelector('#uploadButton')
-upload_button.disabled = False
+
+
+async def handle_file_select(e):
+    '''
+    If the file select changed check if a files is selected.
+    If files is selected activate the upload ("Process the file") button.  
+    '''
+    #Dectivate download button
+    document.getElementById("downloadButton").disabled = True
+    #jsonFile = document.querySelector('#jsonFile')
+    #print(f"ID of jsonFile: {jsonFile.id}")
+    file_select = e.target
+    file_list = file_select.files
+    if file_list.length > 0:
+        filename  = file_list.item(0).name          
+        # You can also check if the file is a JSON file (optional)
+        extensions = ['json']
+        file_extension = filename.split('.').pop().lower()
+        
+        if file_extension in extensions:
+            print("Selected file has a JSON extension:", filename)
+        else:
+            print("Selected file doesn't have JSON extension:", filename)
+        #Activate "Process the file" button
+        upload_button = document.querySelector('#uploadButton')
+        upload_button.disabled = False
+
+    else:
+        print("No file selected")
+  
+
+
+
+add_event_listener(file_select,'change', handle_file_select)
 add_event_listener(upload_button,'click', upload_file_and_process)
 
 def downloadFile(*args):
@@ -142,4 +191,6 @@ def downloadFile(*args):
 
 add_event_listener(document.getElementById("downloadButton"), "click", downloadFile)
 
+document.body.removeChild(document.getElementById("loading"))
+document.getElementById("workArea").style.display = ""
 print("Initialisation done")
