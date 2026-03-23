@@ -8,6 +8,9 @@ Run manually using UV:
 ```
 pip install uv
 ```
+Or follow the instruction here:
+https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_1
+
 4. Create venv using UV:
 ```
 uv sync
