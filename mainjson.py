@@ -804,7 +804,7 @@ def count_wrapped_lines(comment):
         if segment == "":
             num_lines += 1
         else:
-            lines = wrap(segment, width=30)
+            lines = wrap(segment, width=900)
             num_lines += len(lines)
 
     if num_lines == 0:
@@ -819,7 +819,10 @@ def comment_height_in_pixels(comment):
     Map the number of lines to a pixel height.
     """
     num_lines = count_wrapped_lines(comment)
-    return num_lines * 16
+    print(f"Comment: {comment}")
+    print(f"num_lines: {num_lines}")
+
+    return num_lines * 20
 
 
 def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comments: dict, header_comments: dict = {}):
@@ -854,7 +857,7 @@ def add_comments(worksheet: xlsxwriter.worksheet, df: pd.DataFrame, bottom_comme
         y_offset = 180 - 165 * comment_counter
             # Add a comment to the GrossProceeds PLN sum cell; set the size of the note to fit the comment text, and move them around 
         worksheet.write_comment(cell_reference, value, 
-                                {'visible': True, "width": 600, "height": comment_height_in_pixels(value) - 30, 
+                                {'visible': True, "width": 900, "height": comment_height_in_pixels(value), 
                                  "y_offset": y_offset, "x_offset": x_offset, "font_size": 11} )
         comment_counter += 1  # Update the counter inside the loop
 
@@ -912,8 +915,10 @@ def generate_tax_report(sale_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.
                     '''),
                 'TotalCost PLN': dedent('''\
                     Into PIT-38 -> Income ->
-                    Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
-                    Tax deductible expenses (zł) - PIT-38 C.23\
+                    Other revenue, including revenue earned ab
+                    road and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
+                    Tax deductible expenses (zł) - PIT-38 C.23
+                    
                     ''')
                                         
             }
@@ -937,13 +942,21 @@ def generate_tax_report(sale_df: pd.DataFrame, dividend_df: pd.DataFrame) -> io.
                     Into PIT-38 -> Income ->
                     Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
                     Lump-sum tax on revenue (income) earned abroad ->
-                    Lump-sum tax (zł) - PIT-38 G.47\
+                    Lump-sum tax (zł) - PIT-38 G.47
+                                    OR
+                    Into PIT-36 -> Your paid advances -> Flat-rate tax ->
+                    Lump-sum tax on income (revenue) - Article 30a paragraph 1 (1)-(5) of the Act (zł)
+                    Item 423 in PIT-36\
                     '''),
                 'TaxWitholdedInUS PLN': dedent('''\
                     Into PIT-38 -> Income ->
                     Other revenue, including revenue earned abroad and revenue from sale of virtual currencies - Article 30B(1A) of the Act ->
                     Lump-sum tax on revenue (income) earned abroad ->
-                    Tax paid abroad (zł) - PIT-38 G.48\
+                    Tax paid abroad (zł) - PIT-38 G.48
+                                    OR
+                    Into PIT-36 -> Your paid advances -> Flat-rate tax ->
+                    Lump-sum tax on income (revenue) - Article 30a paragraph 1 (1)-(5) of the Act (zł)
+                    Item 425 in PIT-36\
                     ''')
             }
             add_comments(worksheet, dividend_df, header_comments=header_comments, bottom_comments=bottom_comments)
